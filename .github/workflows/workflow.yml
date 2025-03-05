@@ -1,0 +1,53 @@
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/workflow.yml'
+      - 'src/**'
+
+name: Test
+
+env:
+  RUSTFLAGS: "-Dwarnings --cfg tracing_unstable"
+  RUSTDOCFLAGS: "-Dwarnings"
+  RUST_BACKTRACE: "1" 
+
+jobs:
+  cargo-doc:
+    name: Cargo Doc
+    runs-on: ubuntu-latest-16-cores
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need at least 2 commits for diff
+
+      - name: Check for doc comment changes
+        id: check-docs
+        run: |
+          if git diff HEAD^ HEAD -U0 | grep -q '^\+\s*///\|^\+\s*//!\|^\+\s*#\[doc'; then
+            echo "has_doc_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_doc_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.check-docs.outputs.has_doc_changes == 'true'
+        with:
+          cache-all-crates: true
+
+      - name: Run cargo doc
+        if: steps.check-docs.outputs.has_doc_changes == 'true'
+        run: cargo doc --no-deps
+
+  clippy:
+    name: Clippy Check
+    runs-on: ubuntu-latest-16-cores
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
