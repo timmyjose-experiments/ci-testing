@@ -1,7 +1,16 @@
 on:
   workflow_dispatch:
   push:
+    branches-ignore: '**' # for normal push events
     paths:
+      - '.github/workflows/workflow.yml'
+      - 'src/**'
+    pull_request:
+      types:
+        - opened
+        - synchronize
+        - reopened
+      paths:
       - '.github/workflows/workflow.yml'
       - 'src/**'
 
@@ -15,6 +24,7 @@ env:
 jobs:
   clippy:
     name: Clippy Check
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest-16-cores
     steps:
       - name: Checkout
